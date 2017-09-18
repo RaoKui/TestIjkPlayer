@@ -5,12 +5,17 @@ import android.content.Context;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.util.AttributeSet;
+import android.view.Surface;
+import android.view.SurfaceHolder;
 import android.view.TextureView;
 import android.view.View;
 
 import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import tv.danmaku.ijk.media.player.IMediaPlayer;
+import tv.danmaku.ijk.media.player.ISurfaceTextureHolder;
 
 /**
  * android 4.0 以上的播放器显示View
@@ -20,6 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TextureRenderView extends TextureView implements IRenderView {
 
     // TODO: 2017/9/8  MeasureHelper
+
+    private SurfaceCallBack mSurfaceCallback;
 
 
     public TextureRenderView(Context context) {
@@ -52,7 +59,7 @@ public class TextureRenderView extends TextureView implements IRenderView {
     }
 
     private void initView(Context context) {
-
+        mSurfaceCallback = new SurfaceCallBack(this);
 
     }
 
@@ -111,9 +118,10 @@ public class TextureRenderView extends TextureView implements IRenderView {
 
         private WeakReference<TextureRenderView> mWeakRenderView;
 
+
         private Map<IRenderCallback, Object> mRenderCallbackMap = new ConcurrentHashMap<>();
 
-        public SurfaceCallBack(TextureRenderView renderView){
+        public SurfaceCallBack(TextureRenderView renderView) {
             mWeakRenderView = new WeakReference<TextureRenderView>(renderView);
         }
 
@@ -121,13 +129,17 @@ public class TextureRenderView extends TextureView implements IRenderView {
             this.own_surface_texture = own_surface_texture;
         }
 
-        public void addRenderCallback(IRenderCallback callback){
-            mRenderCallbackMap.put(callback,callback);
+
+        public void addRenderCallback(IRenderCallback callback) {
+            mRenderCallbackMap.put(callback, callback);
 
             ISurfaceHolder surfaceHolder = null;
-            if (mSurfaceTexture!=null){
-//             
-                // TODO: 2017/9/8  
+            if (mSurfaceTexture != null) {
+                if (surfaceHolder == null) {
+                    surfaceHolder = new InternalSurfaceHolder(mWeakRenderView.get(), mSurfaceTexture);
+                }
+                // TODO: 2017/9/8
+
             }
 
         }
@@ -150,6 +162,68 @@ public class TextureRenderView extends TextureView implements IRenderView {
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture surface) {
 
+        }
+    }
+
+    public ISurfaceHolder getSurfaceHolder() {
+        return new InternalSurfaceHolder(this, mSurfaceCallback.mSurfaceTexture);
+    }
+
+    private static final class InternalSurfaceHolder implements ISurfaceHolder {
+
+        private TextureRenderView mTextureView;
+
+        private SurfaceTexture mSurfaceTexture;
+
+        public InternalSurfaceHolder(TextureRenderView textureRenderView, SurfaceTexture mSurfaceTexture) {
+            this.mTextureView = textureRenderView;
+            this.mSurfaceTexture = mSurfaceTexture;
+        }
+
+        @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
+        @Override
+        public void bindToMediaPlayer(IMediaPlayer mp) {
+            if (mp == null) {
+                return;
+            }
+            // android 4.1 及以上版本
+            if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) && (mp instanceof ISurfaceHolder)) {
+                ISurfaceTextureHolder textureHolder = (ISurfaceTextureHolder) mp;
+                mTextureView.mSurfaceCallback.setOwnSurfaceTexture(false);
+
+                SurfaceTexture surfaceTexture = textureHolder.getSurfaceTexture();
+                if (surfaceTexture != null) {
+                    mTextureView.setSurfaceTexture(surfaceTexture);
+                } else {
+                    textureHolder.setSurfaceTexture(mSurfaceTexture);
+                }
+            } else {
+                mp.setSurface(openSurface());
+            }
+        }
+
+        @Override
+        public IRenderView getRenderView() {
+            return mTextureView;
+        }
+
+        @Override
+        public SurfaceHolder getSurfaceHolder() {
+            return null;
+        }
+
+        @Override
+        public Surface openSurface() {
+            return null;
+        }
+
+        @Override
+        public Surface getSurfaceTexture() {
+            if (mSurfaceTexture == null) {
+                return null;
+            } else {
+                return new Surface(mSurfaceTexture);
+            }
         }
     }
 

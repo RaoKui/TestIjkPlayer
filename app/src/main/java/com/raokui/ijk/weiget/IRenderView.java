@@ -1,6 +1,5 @@
 package com.raokui.ijk.weiget;
 
-import android.graphics.SurfaceTexture;
 import android.support.annotation.NonNull;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -108,7 +107,7 @@ public interface IRenderView {
          *
          * @return
          */
-        SurfaceTexture getSurfaceTexture();
+        Surface getSurfaceTexture();
     }
 
     interface IRenderCallback {
