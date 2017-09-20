@@ -79,11 +79,130 @@ public final class MeasureHelper {
             int height_spec_mode = View.MeasureSpec.getMode(height_measure_spec);
             int height_spec_size = View.MeasureSpec.getSize(height_measure_spec);
 
-            if (width_spec_mode == View.MeasureSpec.AT_MOST && height_spec_mode == View.MeasureSpec.AT_MOST){
-                float spec_aspect_ratio = (float)width_spec_size/(float)height_spec_size;
+            if (width_spec_mode == View.MeasureSpec.AT_MOST && height_spec_mode == View.MeasureSpec.AT_MOST) {
+                float spec_aspect_ratio = (float) width_spec_size / (float) height_spec_size;
+                float display_aspect_radio;
+                switch (current_aspect_ratio) {
+                    case IRenderView.AR_16_9_FIT_PARENT:
+                        display_aspect_radio = 16.0f / 9.0f;
+                        if (video_rotation_degree == 90 || video_rotation_degree == 270) {
+                            display_aspect_radio = 1.0f / display_aspect_radio;
+                        }
+                        break;
+                    case IRenderView.AR_4_3_FIT_PARENT:
+                        display_aspect_radio = 4.0f / 3.0f;
+                        if (video_rotation_degree == 90 || video_rotation_degree == 270) {
+                            display_aspect_radio = 1.0f / display_aspect_radio;
+                        }
+                        break;
+                    case IRenderView.AR_ASPECT_FIT_PARENT:
+                    case IRenderView.AR_ASPECT_WRAP_CONTENT:
+                    case IRenderView.AR_ASPECT_FILL_PARENT:
+                    default:
+                        display_aspect_radio = (float) video_width / (float) video_height;
+                        if (video_sar_den > 0 && video_sar_num > 0) {
+                            display_aspect_radio = display_aspect_radio * video_sar_num / video_sar_den;
+                        }
+                        break;
+                }
+                boolean shouldBeWider = display_aspect_radio > spec_aspect_ratio;
+
+                switch (current_aspect_ratio) {
+                    case IRenderView.AR_ASPECT_FIT_PARENT:
+                    case IRenderView.AR_16_9_FIT_PARENT:
+                    case IRenderView.AR_4_3_FIT_PARENT:
+                        if (shouldBeWider) {
+                            // 太宽需要适配宽度
+                            width = width_spec_size;
+                            height = (int) (width / display_aspect_radio);
+                        } else {
+                            // 太高需要适配高度
+                            height = height_spec_size;
+                            width = (int) (height * display_aspect_radio);
+                        }
+                        break;
+                    case IRenderView.AR_ASPECT_FILL_PARENT:
+                        if (shouldBeWider) {
+                            height = height_spec_size;
+                            width = (int) (height * display_aspect_radio);
+                        } else {
+                            width = width_spec_size;
+                            height = (int) (width / display_aspect_radio);
+                        }
+                        break;
+                    case IRenderView.AR_ASPECT_WRAP_CONTENT:
+                    default:
+                        if (shouldBeWider) {
+                            // too wide, fix width
+                            width = Math.min(video_width, width_spec_size);
+                            height = (int) (width / display_aspect_radio);
+                        } else {
+                            // too high, fix height
+                            height = Math.min(video_height, height_spec_size);
+                            width = (int) (height * display_aspect_radio);
+                        }
+                        break;
+                }
+            } else if (width_spec_mode == View.MeasureSpec.EXACTLY && height_spec_mode == View.MeasureSpec.EXACTLY) {
+                width = width_spec_size;
+                height = height_spec_size;
+
+                // 为了兼容，调整宽高比
+                if (video_width * height < width * video_height) {
+                    width = height * video_width / video_height;
+                } else if (video_width * height > width * video_height) {
+                    height = width * video_height / video_width;
+                }
+            } else if (width_spec_mode == View.MeasureSpec.EXACTLY) {
+                // only the width is fixed, adjust the height to match aspect ratio if possible
+                width = width_spec_size;
+                height = width * video_height / video_width;
+                if (height_spec_mode == View.MeasureSpec.AT_MOST && height > height_spec_size) {
+                    // couldn't match aspect ratio within the constraints
+                    height = height_spec_size;
+                }
+            } else if (height_spec_mode == View.MeasureSpec.EXACTLY) {
+                // only the height is fixed, adjust the width to match aspect ratio if possible
+                height = height_spec_size;
+                width = height * video_width / video_height;
+                if (width_spec_mode == View.MeasureSpec.AT_MOST && width > width_spec_size) {
+                    // couldn't match aspect ratio within the constraints
+                    width = width_spec_size;
+                }
+            } else {
+                // neither the width nor the height are fixed, try to use actual video size
+                width = video_width;
+                height = video_height;
+                if (height_spec_mode == View.MeasureSpec.AT_MOST && height > height_spec_size) {
+                    // too tall, decrease both width and height
+                    height = height_spec_size;
+                    width = height * video_width / video_height;
+                }
+                if (height_spec_mode == View.MeasureSpec.AT_MOST && width > width_spec_size) {
+                    // too wide, decrease both width and height
+                    width = width_spec_size;
+                    height = width * video_height / video_width;
+                }
             }
+        } else {
+
         }
 
+        measured_width = width;
+        measured_height = height;
     }
+
+    public int getMeasuredWidth() {
+        return measured_width;
+    }
+
+    public int getMeasuredHeight() {
+        return measured_height;
+    }
+
+    public void setAspectRatio(int aspectRatio) {
+        current_aspect_ratio = aspectRatio;
+    }
+
 
 }

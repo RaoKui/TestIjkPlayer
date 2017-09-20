@@ -3,12 +3,16 @@ package com.raokui.ijk.weiget;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.SurfaceTexture;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.os.Build;
+import android.support.annotation.NonNull;
 import android.util.AttributeSet;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.TextureView;
 import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import java.lang.ref.WeakReference;
 import java.util.Map;
@@ -24,7 +28,7 @@ import tv.danmaku.ijk.media.player.ISurfaceTextureHolder;
 
 public class TextureRenderView extends TextureView implements IRenderView {
 
-    // TODO: 2017/9/8  MeasureHelper
+    private MeasureHelper mMeasureHelper;
 
     private SurfaceCallBack mSurfaceCallback;
 
@@ -59,13 +63,16 @@ public class TextureRenderView extends TextureView implements IRenderView {
     }
 
     private void initView(Context context) {
+        mMeasureHelper = new MeasureHelper(this);
         mSurfaceCallback = new SurfaceCallBack(this);
+        setSurfaceTextureListener(mSurfaceCallback);
+
 
     }
 
     @Override
     public View getView() {
-        return null;
+        return this;
     }
 
     @Override
@@ -75,32 +82,46 @@ public class TextureRenderView extends TextureView implements IRenderView {
 
     @Override
     public void setVideoSize(int video_width, int video_height) {
-
+        if (video_width > 0 && video_height > 0) {
+            mMeasureHelper.setVideoSize(video_width, video_height);
+            requestLayout();
+        }
     }
 
     @Override
     public void setVideoSampleAspectRatio(int video_sar_num, int video_sar_den) {
-
+        if (video_sar_num > 0 && video_sar_den > 0) {
+            mMeasureHelper.setVideoSampleAspectRatio(video_sar_num, video_sar_den);
+            requestLayout();
+        }
     }
 
     @Override
     public void setVideoRotation(int degree) {
-
+        mMeasureHelper.setVideoRotation(degree);
+        setRotation(degree);
     }
 
     @Override
     public void setAspectRatio(int aspect_ratio) {
+        mMeasureHelper.setAspectRatio(aspect_ratio);
+        requestLayout();
+    }
 
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        mMeasureHelper.doMeasure(widthMeasureSpec, heightMeasureSpec);
+        setMeasuredDimension(mMeasureHelper.getMeasuredWidth(), mMeasureHelper.getMeasuredHeight());
     }
 
     @Override
     public void addRenderCallback(IRenderCallback callback) {
-
+        mSurfaceCallback.addRenderCallback(callback);
     }
 
     @Override
     public void removeRenderCallback(IRenderCallback callback) {
-
+        mSurfaceCallback.removeRenderCallback(callback);
     }
 
 
@@ -108,7 +129,7 @@ public class TextureRenderView extends TextureView implements IRenderView {
 
         private SurfaceTexture mSurfaceTexture;
 
-        private boolean is_format_changed;
+        private boolean isFormatChanged;
 
         private int width;
 
@@ -138,31 +159,78 @@ public class TextureRenderView extends TextureView implements IRenderView {
                 if (surfaceHolder == null) {
                     surfaceHolder = new InternalSurfaceHolder(mWeakRenderView.get(), mSurfaceTexture);
                 }
-                // TODO: 2017/9/8
+                callback.onSurfaceCreated(surfaceHolder, width, height);
+            }
 
+            if (isFormatChanged) {
+                if (surfaceHolder == null) {
+                    surfaceHolder = new InternalSurfaceHolder(mWeakRenderView.get(), mSurfaceTexture);
+                }
+                callback.onSurfaceChanged(surfaceHolder, 0, width, height);
             }
 
         }
 
+        public void removeRenderCallback(@NonNull IRenderCallback callback) {
+            mRenderCallbackMap.remove(callback);
+        }
+
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+            mSurfaceTexture = surface;
+            isFormatChanged = false;
+            width = 0;
+            height = 0;
 
+            ISurfaceHolder surfaceHolder = new InternalSurfaceHolder(mWeakRenderView.get(), surface);
+            for (IRenderCallback renderCallback : mRenderCallbackMap.keySet()) {
+                renderCallback.onSurfaceCreated(surfaceHolder, 0, 0);
+            }
         }
 
         @Override
         public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+            mSurfaceTexture = surface;
+            isFormatChanged = true;
+            width = 0;
+            height = 0;
 
+            ISurfaceHolder surfaceHolder = new InternalSurfaceHolder(mWeakRenderView.get(), surface);
+            for (IRenderCallback renderCallback : mRenderCallbackMap.keySet()) {
+                renderCallback.onSurfaceCreated(surfaceHolder, 0, 0);
+            }
         }
 
         @Override
         public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-            return false;
+            mSurfaceTexture = surface;
+            isFormatChanged = false;
+            width = 0;
+            height = 0;
+            ISurfaceHolder surfaceHolder = new InternalSurfaceHolder(mWeakRenderView.get(), surface);
+            for (IRenderCallback renderCallback : mRenderCallbackMap.keySet()) {
+                renderCallback.onSurfaceDestroyed(surfaceHolder);
+            }
+            return own_surface_texture;
         }
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture surface) {
 
         }
+    }
+
+    @Override
+    public void onInitializeAccessibilityEvent(AccessibilityEvent event) {
+        super.onInitializeAccessibilityEvent(event);
+        event.setClassName(TextureRenderView.class.getName());
+
+    }
+
+    @Override
+    public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+        super.onInitializeAccessibilityNodeInfo(info);
+        info.setClassName(TextureRenderView.class.getName());
     }
 
     public ISurfaceHolder getSurfaceHolder() {
