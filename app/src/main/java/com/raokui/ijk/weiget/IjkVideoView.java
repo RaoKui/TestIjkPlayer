@@ -14,6 +14,7 @@ import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -785,7 +786,13 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
 
     @Override
     public void pause() {
-
+        if (isInPlayBackState()) {
+            if (mediaPlayer.isPlaying()) {
+                mediaPlayer.pause();
+                current_state = PlayStateParams.STATE_PAUSED;
+            }
+        }
+        target_state = PlayStateParams.STATE_PAUSED;
     }
 
     @Override
@@ -872,6 +879,67 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
             toggleMediaControlsVisibility();
         }
         return false;
+    }
+
+    public void onPause() {
+        release(false);
+    }
+
+    public void onResume() {
+        release(false);
+    }
+
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        boolean isKeyCodeSupported = keyCode != KeyEvent.KEYCODE_BACK &&
+                keyCode != KeyEvent.KEYCODE_VOLUME_UP &&
+                keyCode != KeyEvent.KEYCODE_VOLUME_DOWN &&
+                keyCode != KeyEvent.KEYCODE_VOLUME_MUTE &&
+                keyCode != KeyEvent.KEYCODE_MENU &&
+                keyCode != KeyEvent.KEYCODE_CALL &&
+                keyCode != KeyEvent.KEYCODE_ENDCALL;
+        if (isKeyCodeSupported && isKeyCodeSupported && mMediaController != null) {
+            if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+                if (mediaPlayer.isPlaying()) {
+                    pause();
+                    mMediaController.show();
+                } else {
+                    start();
+                    mMediaController.hide();
+                }
+
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY) {
+                if (!mediaPlayer.isPlaying()) {
+                    start();
+                    mMediaController.hide();
+                }
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_MEDIA_STOP
+                    || keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) {
+                if (mediaPlayer.isPlaying()) {
+                    pause();
+                    mMediaController.show();
+                }
+                return true;
+            } else {
+                toggleMediaControlsVisibility();
+            }
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    public void setAspectRatio(int aspect_ratio) {
+        for (int i = 0; i < s_all_aspect_ratio.length; i++) {
+            if (s_all_aspect_ratio[i] == aspect_ratio) {
+                current_aspect_ratio_index = i;
+                if (mRenderView != null) {
+                    mRenderView.setAspectRatio(current_aspect_ratio);
+                }
+                break;
+            }
+        }
     }
 
     @Override
