@@ -16,7 +16,7 @@ public interface IMediaController {
     /**
      * 判断是否显示
      */
-    void isShowing();
+    boolean isShowing();
 
     /**
      *设置主播界面

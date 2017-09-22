@@ -1,25 +1,27 @@
 package com.raokui.ijk.weiget;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.res.Resources;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
-import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.view.ViewPager;
 import android.text.TextUtils;
-import android.text.method.MultiTapKeyListener;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.MediaController;
-import android.widget.MultiAutoCompleteTextView;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,7 @@ import tv.danmaku.ijk.media.player.AndroidMediaPlayer;
 import tv.danmaku.ijk.media.player.IMediaPlayer;
 import tv.danmaku.ijk.media.player.IjkMediaPlayer;
 import tv.danmaku.ijk.media.player.TextureMediaPlayer;
+import tv.danmaku.ijk.media.player.misc.IMediaDataSource;
 
 /**
  * Created by raokui on 9/5/17.
@@ -350,64 +353,127 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
 
         AudioManager am = (AudioManager) mAppContext.getSystemService(Context.AUDIO_SERVICE);
         am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        try {
+            if (using_android_player) {
+                mediaPlayer = new AndroidMediaPlayer();
+            } else {
+                IjkMediaPlayer ijkMediaPlayer = null;
+                if (mUri != null) {
+                    ijkMediaPlayer = new IjkMediaPlayer();
+                    ijkMediaPlayer.native_setLogLevel(ijkMediaPlayer.IJK_LOG_DEBUG);
 
-        if (using_android_player) {
-            mediaPlayer = new AndroidMediaPlayer();
-        } else {
-            IjkMediaPlayer ijkMediaPlayer = null;
-            if (mUri != null) {
-                ijkMediaPlayer = new IjkMediaPlayer();
-                ijkMediaPlayer.native_setLogLevel(ijkMediaPlayer.IJK_LOG_DEBUG);
-
-                if (using_media_codec) {
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 1);
-                    if (using_media_codec_auto_rotate) {
-                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", 1);
+                    if (using_media_codec) {
+                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 1);
+                        if (using_media_codec_auto_rotate) {
+                            ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", 1);
+                        } else {
+                            ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", 0);
+                        }
                     } else {
-                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", 0);
+                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 0);
                     }
-                } else {
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 0);
+
+                    if (using_open_SLES) {
+                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "opensles", 1);
+                    } else {
+                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "opensles", 0);
+                    }
+
+                    if (TextUtils.isEmpty(pixel_format)) {
+                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", IjkMediaPlayer.SDL_FCC_RV32);
+                    } else {
+                        ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", pixel_format);
+                    }
+
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", 1);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", 0);
+
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "http-detect-range-support", 0);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "timeout", 10000000);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "reconnect", 1);
+
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip_loop_filter", 48);
+
                 }
 
-                if (using_open_SLES) {
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "opensles", 1);
-                } else {
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "opensles", 0);
-                }
-
-                if (TextUtils.isEmpty(pixel_format)) {
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", IjkMediaPlayer.SDL_FCC_RV32);
-                } else {
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", pixel_format);
-                }
-
-                ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", 1);
-                ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", 0);
-
-                ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "http-detect-range-support", 0);
-                ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "timeout", 10000000);
-                ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "reconnect", 1);
-
-                ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip_loop_filter", 48);
-
+                mediaPlayer = ijkMediaPlayer;
             }
 
-            mediaPlayer = ijkMediaPlayer;
+            if (enable_background_play) {
+                mediaPlayer = new TextureMediaPlayer(mediaPlayer);
+            }
+
+            final Context context = getContext();
+            mediaPlayer.setOnPreparedListener(mPreparedListener);
+            mediaPlayer.setOnCompletionListener(mCompletionListener);
+            mediaPlayer.setOnErrorListener(mErrorListener);
+            mediaPlayer.setOnInfoListener(mInfoListener);
+            mediaPlayer.setOnVideoSizeChangedListener(mSizeChangedListener);
+            mediaPlayer.setOnBufferingUpdateListener(mBufferingUpdateListener);
+
+            current_buffer_percentage = 0;
+            String scheme = mUri.getScheme();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && using_android_player && (TextUtils.isEmpty(scheme) || scheme.equalsIgnoreCase("file"))) {
+                IMediaDataSource dataSource = new FileMediaDataSource(new File(mUri.toString()));
+                mediaPlayer.setDataSource(dataSource);
+            } else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+                mediaPlayer.setDataSource(mAppContext, mUri, mHeaders);
+            } else {
+                mediaPlayer.setDataSource(mUri.toString());
+            }
+
+            bindSurfaceHolder(mediaPlayer, mSurfaceHolder);
+            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            mediaPlayer.setScreenOnWhilePlaying(true);
+            mediaPlayer.prepareAsync();
+
+            current_state = PlayStateParams.STATE_PREPARING;
+            attachMediaController();
+
+        } catch (IOException ex) {
+            Log.w(TAG, "Unable to open content: " + mUri, ex);
+            current_state = PlayStateParams.STATE_ERROR;
+            target_state = PlayStateParams.STATE_ERROR;
+            mErrorListener.onError(mediaPlayer, MediaPlayer.MEDIA_ERROR_UNKNOWN, 0);
+            return;
+        } catch (IllegalArgumentException ex) {
+            Log.w(TAG, "Unable to open content: " + mUri, ex);
+            current_state = PlayStateParams.STATE_ERROR;
+            target_state = PlayStateParams.STATE_ERROR;
+            mErrorListener.onError(mediaPlayer, MediaPlayer.MEDIA_ERROR_UNKNOWN, 0);
+            return;
+        } finally {
+            // REMOVED: mPendingSubtitleTracks.clear();
         }
+    }
 
-        if (enable_background_play) {
-            mediaPlayer = new TextureMediaPlayer(mediaPlayer);
+    private void setMediaController(IMediaController controller) {
+        if (mMediaController != null) {
+            mMediaController.hide();
         }
+        mMediaController = controller;
+        attachMediaController();
+    }
 
-        final Context context = getContext();
-        mediaPlayer.setOnPreparedListener(mOnPreparedListener);
-        mediaPlayer.setOnCompletionListener(mOnCompletionListener);
-        mediaPlayer.setOnErrorListener(mOnErrorListener);
-        mediaPlayer.setOnInfoListener(mOnInfoListener);
-        mediaPlayer.setOnVideoSizeChangedListener(mSizeChangedListener);
+    private void attachMediaController() {
+        if (mediaPlayer != null && mMediaController != null) {
+            mMediaController.setMediaPlayer(this);
+            View anchorView = this.getParent() instanceof View ? (View) this.getParent() : this;
+            mMediaController.setAnchorView(anchorView);
+            mMediaController.setEnabled(isInPlayBackState());
+        }
+    }
 
-
+    public void stopPlayBack() {
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.release();
+            mediaPlayer = null;
+            current_state = PlayStateParams.STATE_IDLE;
+            target_state = PlayStateParams.STATE_IDLE;
+            AudioManager am = (AudioManager) mAppContext.getSystemService(Context.AUDIO_SERVICE);
+            am.abandonAudioFocus(null);
+        }
     }
 
     /**
@@ -454,21 +520,53 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
             mSurfaceHolder = holder;
             if (mediaPlayer != null) {
                 bindSurfaceHolder(mediaPlayer, holder);
+            } else {
+                openVideo();
             }
         }
 
         @Override
         public void onSurfaceChanged(@NonNull IRenderView.ISurfaceHolder holder, int format, int width, int height) {
+            if (holder.getRenderView() != mRenderView) {
+                return;
+            }
 
+            surface_width = width;
+            surface_height = height;
+            boolean isValidState = (target_state == PlayStateParams.STATE_PLAYING);
+            boolean hasValidSize = !mRenderView.shouldWaitForResize() || (video_width == width && video_height == height);
+
+            if (mediaPlayer != null && isValidState && hasValidSize) {
+                if (seek_when_prepared != 0) {
+                    seekTo((int) seek_when_prepared);
+                }
+
+                start();
+            }
         }
 
         @Override
         public void onSurfaceDestroyed(@NonNull IRenderView.ISurfaceHolder holder) {
+            if (holder.getRenderView() != mRenderView) {
+                Log.e(TAG, "onSurfaceDestroyed: unmatched render callback\n");
+                return;
+            }
 
+            // after we return from this we can't use the surface any more
+            mSurfaceHolder = null;
+            // REMOVED: if (mMediaController != null) mMediaController.hide();
+            // REMOVED: release(true);
+            releaseWithoutStop();
         }
     };
 
-    IMediaPlayer.OnVideoSizeChangedListener mSizeChangedListener = new IMediaPlayer.OnVideoSizeChangedListener() {
+    public void releaseWithoutStop() {
+        if (mediaPlayer != null) {
+            mediaPlayer.setDisplay(null);
+        }
+    }
+
+    private IMediaPlayer.OnVideoSizeChangedListener mSizeChangedListener = new IMediaPlayer.OnVideoSizeChangedListener() {
         @Override
         public void onVideoSizeChanged(IMediaPlayer mp, int width, int height, int sar_num, int sar_den) {
             video_width = mp.getVideoWidth();
@@ -486,7 +584,7 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
         }
     };
 
-    IMediaPlayer.OnPreparedListener mPreparedListener = new IMediaPlayer.OnPreparedListener() {
+    private IMediaPlayer.OnPreparedListener mPreparedListener = new IMediaPlayer.OnPreparedListener() {
         @Override
         public void onPrepared(IMediaPlayer mp) {
             current_state = PlayStateParams.STATE_PREPARED;
@@ -527,6 +625,137 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
                         }
                     }
                 }
+            } else {
+                if (target_state == PlayStateParams.STATE_PLAYING) {
+                    start();
+                }
+            }
+        }
+    };
+
+    private IMediaPlayer.OnErrorListener mErrorListener = new IMediaPlayer.OnErrorListener() {
+        @Override
+        public boolean onError(IMediaPlayer mp, int framework_err, int impl_err) {
+            current_state = PlayStateParams.STATE_ERROR;
+            target_state = PlayStateParams.STATE_ERROR;
+
+            if (mMediaController != null) {
+                mMediaController.hide();
+            }
+
+            if (mOnErrorListener != null) {
+                mOnErrorListener.onError(mediaPlayer, framework_err, impl_err);
+            }
+
+            if (mOnInfoListener != null) {
+                if (mOnInfoListener.onInfo(mediaPlayer, framework_err, 0)) {
+                    return true;
+                }
+            }
+
+            if (getWindowToken() != null) {
+                Resources r = mAppContext.getResources();
+                String message = "Unknown error";
+
+                if (framework_err == mediaPlayer.MEDIA_ERROR_NOT_VALID_FOR_PROGRESSIVE_PLAYBACK) {
+                    message = "Invalid progressive playback";
+                }
+
+                new AlertDialog.Builder(getContext())
+                        .setMessage(message)
+                        .setPositiveButton("error"
+                                , new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        if (mOnCompletionListener != null) {
+                                            mOnCompletionListener.onCompletion(mediaPlayer);
+                                        }
+                                    }
+                                })
+                        .setCancelable(false)
+                        .show();
+            }
+
+            return true;
+        }
+    };
+
+    private IMediaPlayer.OnInfoListener mInfoListener = new IMediaPlayer.OnInfoListener() {
+        @Override
+        public boolean onInfo(IMediaPlayer mp, int what, int extra) {
+            if (mOnCompletionListener != null) {
+                mOnInfoListener.onInfo(mp, what, extra);
+            }
+
+            switch (what) {
+                case IMediaPlayer.MEDIA_INFO_VIDEO_TRACK_LAGGING:
+                    Log.d(TAG, "MEDIA_INFO_VIDEO_TRACK_LAGGING:");
+                    break;
+                case IMediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START:
+                    Log.d(TAG, "MEDIA_INFO_VIDEO_RENDERING_START:");
+                    break;
+                case IMediaPlayer.MEDIA_INFO_BUFFERING_START:
+                    Log.d(TAG, "MEDIA_INFO_BUFFERING_START:");
+                    break;
+                case IMediaPlayer.MEDIA_INFO_BUFFERING_END:
+                    Log.d(TAG, "MEDIA_INFO_BUFFERING_END:");
+                    break;
+                case IMediaPlayer.MEDIA_INFO_NETWORK_BANDWIDTH:
+                    Log.d(TAG, "MEDIA_INFO_NETWORK_BANDWIDTH: " + extra);
+                    break;
+                case IMediaPlayer.MEDIA_INFO_BAD_INTERLEAVING:
+                    Log.d(TAG, "MEDIA_INFO_BAD_INTERLEAVING:");
+                    break;
+                case IMediaPlayer.MEDIA_INFO_NOT_SEEKABLE:
+                    Log.d(TAG, "MEDIA_INFO_NOT_SEEKABLE:");
+                    break;
+                case IMediaPlayer.MEDIA_INFO_METADATA_UPDATE:
+                    Log.d(TAG, "MEDIA_INFO_METADATA_UPDATE:");
+                    break;
+                case IMediaPlayer.MEDIA_INFO_UNSUPPORTED_SUBTITLE:
+                    Log.d(TAG, "MEDIA_INFO_UNSUPPORTED_SUBTITLE:");
+                    break;
+                case IMediaPlayer.MEDIA_INFO_SUBTITLE_TIMED_OUT:
+                    Log.d(TAG, "MEDIA_INFO_SUBTITLE_TIMED_OUT:");
+                    break;
+                case IMediaPlayer.MEDIA_INFO_VIDEO_ROTATION_CHANGED:
+                    video_rotation_degree = extra;
+                    if (mRenderView != null) {
+                        mRenderView.setVideoRotation(extra);
+                    }
+                    break;
+
+                case IMediaPlayer.MEDIA_INFO_AUDIO_RENDERING_START:
+                    Log.d(TAG, "MEDIA_INFO_AUDIO_RENDERING_START:");
+                    break;
+            }
+
+            return true;
+        }
+    };
+
+    private IMediaPlayer.OnBufferingUpdateListener mBufferingUpdateListener = new IMediaPlayer.OnBufferingUpdateListener() {
+        @Override
+        public void onBufferingUpdate(IMediaPlayer mp, int percent) {
+            current_buffer_percentage = percent;
+        }
+    };
+
+    private IMediaPlayer.OnCompletionListener mCompletionListener = new IMediaPlayer.OnCompletionListener() {
+        @Override
+        public void onCompletion(IMediaPlayer mp) {
+            current_state = PlayStateParams.STATE_COMPLETED;
+            target_state = PlayStateParams.STATE_COMPLETED;
+            if (mMediaController != null) {
+                mMediaController.hide();
+            }
+
+            if (mOnCompletionListener != null) {
+                mOnCompletionListener.onCompletion(mediaPlayer);
+            }
+
+            if (mOnInfoListener != null) {
+                mOnInfoListener.onInfo(mediaPlayer, PlayStateParams.STATE_COMPLETED, 0);
             }
         }
     };
@@ -605,6 +834,23 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
         }
     }
 
+    public void setOnPreparedListener(IMediaPlayer.OnPreparedListener l) {
+        mOnPreparedListener = l;
+    }
+
+    public void setOnCompletionListener(IMediaPlayer.OnCompletionListener l) {
+        mOnCompletionListener = l;
+    }
+
+    public void setOnErrorListener(IMediaPlayer.OnErrorListener l) {
+        mOnErrorListener = l;
+    }
+
+    public void setOnInfoListener(IMediaPlayer.OnInfoListener l) {
+        mOnInfoListener = l;
+    }
+
+
     private boolean isInPlayBackState() {
         return (mediaPlayer != null
                 && current_state != PlayStateParams.STATE_ERROR
@@ -612,4 +858,27 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
                 && current_state != PlayStateParams.STATE_PREPARING);
     }
 
+    private void toggleMediaControlsVisibility() {
+        if (mMediaController.isShowing()) {
+            mMediaController.hide();
+        } else {
+            mMediaController.show();
+        }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (isInPlayBackState() && mMediaController != null) {
+            toggleMediaControlsVisibility();
+        }
+        return false;
+    }
+
+    @Override
+    public boolean onTrackballEvent(MotionEvent event) {
+        if (isInPlayBackState() && mMediaController != null) {
+            toggleMediaControlsVisibility();
+        }
+        return false;
+    }
 }
